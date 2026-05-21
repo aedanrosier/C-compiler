@@ -115,16 +115,30 @@ enum class ErrorType {
 	EndOfFile,
 	StartOfFile,
 };
+
+struct ErrorInfo { ErrorType type; const char* name; const char* message; };
+
+static constexpr ErrorInfo ErrorInfos[] = {
+    {ErrorType::Null,        "Code: 0 Name: NULL",        "No error"},
+    {ErrorType::Unexpected,  "Code: 1 Name: UNEXPECTED",  "Unexpected token"},
+    {ErrorType::EndOfFile,   "Code: 2 Name: E.O.F",   "Unexpected end of file"},
+    {ErrorType::StartOfFile, "Code: 3 Name: S.O.F", "Unexpected start of file"},
+};
+
+constexpr const ErrorInfo& errorInfo(ErrorType e) {
+    return ErrorInfos[static_cast<std::size_t>(e)];
+}
+
 // [Token Format]
 struct Token {
     TokenType type;     // Type of the token
     std::string value;  // Value of the token
     size_t line;        // Line number in the source code
     size_t column;      // Column number in the source code
-	ErrorType error = ErrorType::Null;
+	ErrorType error;
 
-    Token(TokenType t, const std::string& v, size_t l, size_t c)
-        : type(t), value(v), line(l), column(c) {}
+    Token(TokenType t, const std::string& v, size_t l, size_t c, ErrorType e = ErrorType::Null)
+        : type(t), value(v), line(l), column(c), error(e) {}
 };
 
 // [Scanner / Lexer]
@@ -196,9 +210,9 @@ public:
 			previousChar();
 			std::string identifierStr = subString(startLine, startColumn, currentLine, currentColumn);
 			if (keywords.count(identifierStr) == 0) {
-				return Token(TokenType::Identifier, identifierStr, currentLine, currentColumn);
+				return Token(TokenType::Identifier, identifierStr, startLine, startColumn);
 			} else {
-				return Token(TokenType::Keyword, identifierStr, currentLine, currentColumn);
+				return Token(TokenType::Keyword, identifierStr, startLine, startColumn);
 			}
 		}
 	    // Integer
@@ -225,7 +239,7 @@ public:
 					return Token(TokenType::Float, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn);
 				} else {
 					previousChar();
-					return Token(TokenType::Error, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn);
+					return Token(TokenType::Error, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn, ErrorType::Unexpected);
 				}
 			}
 		}
@@ -449,23 +463,20 @@ public:
 				return Token(TokenType::Error, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn);
 			}
 			while(file[currentLine][currentColumn] != '"') {
-				if (nextChar() == ErrorType::EndOfFile) {
-					previousChar();
-					return Token(TokenType::Error, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn);
-				}
 				if (file[currentLine][currentColumn] == '\\') {
 					if (nextChar() == ErrorType::EndOfFile) {
 						previousChar();
 						return Token(TokenType::Error, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn);
-					} else if (nextChar() == ErrorType::EndOfFile) {
-						previousChar();
-						return Token(TokenType::Error, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn);
 					}
+				}
+				if (nextChar() == ErrorType::EndOfFile) {
+					previousChar();
+					return Token(TokenType::Error, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn);
 				}
 			}
 			return Token(TokenType::String, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn);
 		}
-		return Token(TokenType::Error, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn);
+		return Token(TokenType::Error, subString(startLine, startColumn, currentLine, currentColumn), startLine, startColumn, ErrorType::Unexpected);
 
 	}
 	ErrorType nextChar() {
@@ -541,10 +552,10 @@ void parse(std::vector<std::string> file) {
 		if ( fileTokens.back().type == TokenType::EndOfFile ) {
 			break;
 		} else if ( fileTokens.back().type == TokenType::Error ) {
-			std::cout << "Error at Line: " << fileTokens.back().line << ", Column: " << fileTokens.back().column << std::endl;
+			std::cout << "ERROR: " << errorInfo(fileTokens.back().error).name << " - " << errorInfo(fileTokens.back().error).message <<" at Line: " << fileTokens.back().line << ", Column: " << fileTokens.back().column << std::endl;
 			break;
 		}
-		std::cout << fileTokens.back().value << "\t" << ttts(fileTokens.back().type) << std::endl;
+		std::cout << fileTokens.back().value << "\t" << ttts(fileTokens.back().type) << "\t" << fileTokens.back().line << ", " << fileTokens.back().column << std::endl;
 	}
 }
 

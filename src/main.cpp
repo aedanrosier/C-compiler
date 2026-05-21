@@ -69,6 +69,28 @@ const std::unordered_set<std::string> keywords = {
 	"_Noreturn",
 	"_Static_assert",
 	"_Thread_local",
+
+	//extensions
+	"asm",
+
+	//preprocessor
+	"elif",
+	"ifdef",
+	"ifndef",
+	"elifdef",
+	"elifndef",
+	"define",
+	"undef",
+	"include",
+	"embed",
+	"line",
+	"error",
+	"warning",
+	"pragma",
+	"defined",
+	"__has_include",
+	"__has_embed",
+	"__has_c_attribute",
 };
 
 // [Possible Tokens]
@@ -172,7 +194,12 @@ public:
 				if (nextChar() == ErrorType::EndOfFile) { break; }
 			}
 			previousChar();
-			return Token(TokenType::Identifier, subString(startLine, startColumn, currentLine, currentColumn), currentLine, currentColumn);
+			std::string identifierStr = subString(startLine, startColumn, currentLine, currentColumn);
+			if (keywords.count(identifierStr) == 0) {
+				return Token(TokenType::Identifier, identifierStr, currentLine, currentColumn);
+			} else {
+				return Token(TokenType::Keyword, identifierStr, currentLine, currentColumn);
+			}
 		}
 	    // Integer
 		if (std::isdigit(file[currentLine][currentColumn])) {
@@ -484,6 +511,25 @@ public:
 	}
 };
 
+
+// token type to str
+
+std::string ttts(TokenType tt) {
+if (tt==TokenType::Keyword	 )	{return "Keyword";   }
+if (tt==TokenType::Identifier)	{return "Identifier";}
+if (tt==TokenType::Integer   )	{return "Integer";   }
+if (tt==TokenType::Float     )	{return "Float";     }
+if (tt==TokenType::Operator  )	{return "Operator";  }
+if (tt==TokenType::String    )	{return "String";    }
+if (tt==TokenType::Character )	{return "Character"; }
+if (tt==TokenType::Punctuator)	{return "Punctuator";}
+if (tt==TokenType::Error     )	{return "Error";     }
+if (tt==TokenType::Comment   )	{return "Comment";   }
+if (tt==TokenType::EndOfFile )	{return "EndOfFile"; }
+return "";
+}
+
+
 // [Parser]
 void parse(std::vector<std::string> file) {
 	std::vector<Token> fileTokens;
@@ -498,7 +544,7 @@ void parse(std::vector<std::string> file) {
 			std::cout << "Error at Line: " << fileTokens.back().line << ", Column: " << fileTokens.back().column << std::endl;
 			break;
 		}
-		std::cout << fileTokens.back().value << std::endl;
+		std::cout << fileTokens.back().value << "\t" << ttts(fileTokens.back().type) << std::endl;
 	}
 }
 
